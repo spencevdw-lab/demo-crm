@@ -59,6 +59,21 @@ export default function ContactsView({
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [emailOpen, setEmailOpen] = useState(false);
+  const [emailContact, setEmailContact] = useState<Contact | null>(null);
+  const [emailSubject, setEmailSubject] = useState("");
+  const [emailBody, setEmailBody] = useState("");
+  const [emailSending, setEmailSending] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [emailSuccess, setEmailSuccess] = useState(false);
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkSubject, setBulkSubject] = useState("");
+  const [bulkBody, setBulkBody] = useState("");
+  const [bulkIsHtml, setBulkIsHtml] = useState(false);
+  const [bulkPreview, setBulkPreview] = useState(false);
+  const [bulkSending, setBulkSending] = useState(false);
+  const [bulkError, setBulkError] = useState<string | null>(null);
+  const [bulkResult, setBulkResult] = useState<{ sent: number; failed: number } | null>(null);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -139,6 +154,88 @@ export default function ContactsView({
     }
   }
 
+  function openEmail(c: Contact) {
+    setEmailContact(c);
+    setEmailSubject("");
+    setEmailBody("");
+    setEmailError(null);
+    setEmailSuccess(false);
+    setEmailOpen(true);
+  }
+
+  async function sendEmail(e: React.FormEvent) {
+    e.preventDefault();
+    if (!emailContact) return;
+    setEmailSending(true);
+    setEmailError(null);
+    setEmailSuccess(false);
+    try {
+      const res = await fetch("/api/email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          to: emailContact.email,
+          toName: `${emailContact.firstName} ${emailContact.lastName}`,
+          subject: emailSubject,
+          body: emailBody,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.error ?? "Failed to send email");
+      }
+      setEmailSuccess(true);
+    } catch (err: any) {
+      setEmailError(err.message ?? "Something went wrong");
+    } finally {
+      setEmailSending(false);
+    }
+  }
+
+  function openBulk() {
+    setBulkSubject("");
+    setBulkBody("");
+    setBulkIsHtml(false);
+    setBulkPreview(false);
+    setBulkError(null);
+    setBulkResult(null);
+    setBulkOpen(true);
+  }
+
+  async function sendBulk(e: React.FormEvent) {
+    e.preventDefault();
+    if (!confirm(`Send to ${filtered.length} contacts?`)) return;
+    setBulkSending(true);
+    setBulkError(null);
+    setBulkResult(null);
+    try {
+      const res = await fetch("/api/email/bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contacts: filtered.map((c) => ({
+            email: c.email,
+            firstName: c.firstName,
+            lastName: c.lastName,
+          })),
+          subject: bulkSubject,
+          body: bulkBody,
+          isHtml: bulkIsHtml,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.error ?? "Failed to send");
+      }
+      const data = await res.json();
+      setBulkResult(data);
+    } catch (err: any) {
+      setBulkError(err.message ?? "Something went wrong");
+    } finally {
+      setBulkSending(false);
+    }
+  }
+
   async function remove(id: string) {
     if (!confirm("Delete this contact?")) return;
     const res = await fetch(`/api/contacts/${id}`, { method: "DELETE" });
@@ -156,18 +253,20 @@ export default function ContactsView({
         title="Contacts"
         subtitle={`${contacts.length} contacts in your database`}
         actions={
-          <button className="btn-primary" onClick={openCreate}>
-            <svg
-              className="h-4 w-4"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              viewBox="0 0 24 24"
-            >
-              <path d="M12 5v14M5 12h14" strokeLinecap="round" />
-            </svg>
-            New Contact
-          </button>
+          <div className="flex gap-2">
+            <button className="btn-secondary" onClick={openBulk}>
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              Bulk Email ({filtered.length})
+            </button>
+            <button className="btn-primary" onClick={openCreate}>
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path d="M12 5v14M5 12h14" strokeLinecap="round" />
+              </svg>
+              New Contact
+            </button>
+          </div>
         }
       />
 
@@ -231,6 +330,12 @@ export default function ContactsView({
                   <td className="table-td">{formatDate(c.createdAt)}</td>
                   <td className="table-td text-right whitespace-nowrap">
                     <button
+                      className="text-xs font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300 mr-3"
+                      onClick={() => openEmail(c)}
+                    >
+                      Email
+                    </button>
+                    <button
                       className="text-xs font-medium text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 mr-3"
                       onClick={() => openEdit(c)}
                     >
@@ -256,6 +361,145 @@ export default function ContactsView({
           </table>
         </div>
       </div>
+
+      <Modal open={bulkOpen} onClose={() => setBulkOpen(false)} title={`Bulk Email — ${filtered.length} contacts`}>
+        {bulkResult ? (
+          <div className="py-6 text-center space-y-3">
+            <div className="text-green-600 dark:text-green-400 font-medium text-lg">Done!</div>
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              {bulkResult.sent} sent · {bulkResult.failed} failed
+            </p>
+            <button className="btn-primary mt-2" onClick={() => setBulkOpen(false)}>Close</button>
+          </div>
+        ) : (
+          <form onSubmit={sendBulk} className="space-y-4">
+            <div>
+              <label className="label">Sending to</label>
+              <input
+                className="input bg-slate-50 dark:bg-slate-800"
+                value={`${filtered.length} contacts (use search/filter to narrow down)`}
+                disabled
+              />
+            </div>
+            <div>
+              <label className="label">Subject</label>
+              <input
+                className="input"
+                required
+                placeholder="e.g. Important update from Brown Consult"
+                value={bulkSubject}
+                onChange={(e) => setBulkSubject(e.target.value)}
+              />
+            </div>
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="label mb-0">Message</label>
+                <div className="flex items-center gap-3 text-xs text-slate-500">
+                  <label className="flex items-center gap-1 cursor-pointer">
+                    <input type="checkbox" checked={bulkIsHtml} onChange={(e) => setBulkIsHtml(e.target.checked)} />
+                    HTML mode
+                  </label>
+                  {bulkIsHtml && (
+                    <button type="button" className="text-brand-600 hover:underline" onClick={() => setBulkPreview(!bulkPreview)}>
+                      {bulkPreview ? "Edit" : "Preview"}
+                    </button>
+                  )}
+                </div>
+              </div>
+              {bulkIsHtml && bulkPreview ? (
+                <div
+                  className="border border-slate-200 dark:border-slate-700 rounded-lg p-3 min-h-[160px] text-sm overflow-auto bg-white dark:bg-slate-900"
+                  dangerouslySetInnerHTML={{ __html: bulkBody }}
+                />
+              ) : (
+                <textarea
+                  className="input min-h-[160px] resize-y font-mono text-sm"
+                  required
+                  placeholder={bulkIsHtml
+                    ? "<p>Dear {{firstName}},</p>\n<p>Your message here...</p>"
+                    : "Write your message here...\n\nTip: use {{firstName}} to personalise each email."}
+                  value={bulkBody}
+                  onChange={(e) => setBulkBody(e.target.value)}
+                />
+              )}
+              <p className="text-xs text-slate-400 mt-1">Use <code>{"{{firstName}}"}</code> to personalise each email with the recipient's first name.</p>
+            </div>
+            {bulkError && (
+              <div className="text-sm text-rose-600 dark:text-rose-300 bg-rose-50 dark:bg-rose-500/10 ring-1 ring-rose-200 dark:ring-rose-500/30 rounded-lg px-3 py-2">
+                {bulkError}
+              </div>
+            )}
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button type="button" className="btn-secondary" onClick={() => setBulkOpen(false)}>Cancel</button>
+              <button type="submit" className="btn-primary" disabled={bulkSending}>
+                {bulkSending ? "Sending..." : `Send to ${filtered.length} contacts`}
+              </button>
+            </div>
+          </form>
+        )}
+      </Modal>
+
+      <Modal
+        open={emailOpen}
+        onClose={() => setEmailOpen(false)}
+        title={`Email ${emailContact?.firstName} ${emailContact?.lastName}`}
+      >
+        {emailSuccess ? (
+          <div className="py-6 text-center space-y-3">
+            <div className="text-green-600 dark:text-green-400 font-medium text-lg">Email sent!</div>
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              Your email was sent to {emailContact?.email}
+            </p>
+            <button className="btn-primary mt-2" onClick={() => setEmailOpen(false)}>
+              Close
+            </button>
+          </div>
+        ) : (
+          <form onSubmit={sendEmail} className="space-y-4">
+            <div>
+              <label className="label">To</label>
+              <input
+                className="input bg-slate-50 dark:bg-slate-800"
+                value={`${emailContact?.firstName} ${emailContact?.lastName} <${emailContact?.email}>`}
+                disabled
+              />
+            </div>
+            <div>
+              <label className="label">Subject</label>
+              <input
+                className="input"
+                required
+                placeholder="e.g. Exciting news from Brown Consult"
+                value={emailSubject}
+                onChange={(e) => setEmailSubject(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="label">Message</label>
+              <textarea
+                className="input min-h-[160px] resize-y"
+                required
+                placeholder="Write your message here..."
+                value={emailBody}
+                onChange={(e) => setEmailBody(e.target.value)}
+              />
+            </div>
+            {emailError && (
+              <div className="text-sm text-rose-600 dark:text-rose-300 bg-rose-50 dark:bg-rose-500/10 ring-1 ring-rose-200 dark:ring-rose-500/30 rounded-lg px-3 py-2">
+                {emailError}
+              </div>
+            )}
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button type="button" className="btn-secondary" onClick={() => setEmailOpen(false)}>
+                Cancel
+              </button>
+              <button type="submit" className="btn-primary" disabled={emailSending}>
+                {emailSending ? "Sending..." : "Send Email"}
+              </button>
+            </div>
+          </form>
+        )}
+      </Modal>
 
       <Modal
         open={open}
