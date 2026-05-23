@@ -13,6 +13,8 @@ type Contact = {
   email: string;
   phone: string | null;
   title: string | null;
+  sector: string | null;
+  location: string | null;
   status: "LEAD" | "QUALIFIED" | "CUSTOMER" | "CHURNED";
   companyId: string | null;
   createdAt: string | Date;
@@ -28,6 +30,8 @@ type FormState = {
   email: string;
   phone: string;
   title: string;
+  sector: string;
+  location: string;
   status: Contact["status"];
   companyId: string;
 };
@@ -38,6 +42,8 @@ const EMPTY_FORM: FormState = {
   email: "",
   phone: "",
   title: "",
+  sector: "",
+  location: "",
   status: "LEAD",
   companyId: "",
 };
@@ -85,6 +91,8 @@ export default function ContactsView({
         c.lastName,
         c.email,
         c.title ?? "",
+        c.sector ?? "",
+        c.location ?? "",
         c.company?.name ?? "",
       ]
         .join(" ")
@@ -107,6 +115,8 @@ export default function ContactsView({
       email: c.email,
       phone: c.phone ?? "",
       title: c.title ?? "",
+      sector: c.sector ?? "",
+      location: c.location ?? "",
       status: c.status,
       companyId: c.companyId ?? "",
     });
@@ -130,6 +140,8 @@ export default function ContactsView({
           email: form.email,
           phone: form.phone,
           title: form.title,
+          sector: form.sector || null,
+          location: form.location || null,
           status: form.status,
           companyId: form.companyId || null,
         }),
@@ -297,11 +309,12 @@ export default function ContactsView({
               <tr>
                 <th className="table-th">Name</th>
                 <th className="table-th">Title</th>
+                <th className="table-th">Sector</th>
                 <th className="table-th">Company</th>
-                <th className="table-th">Email</th>
+                <th className="table-th">Location</th>
                 <th className="table-th">Phone</th>
+                <th className="table-th">Email</th>
                 <th className="table-th">Status</th>
-                <th className="table-th">Added</th>
                 <th className="table-th text-right">Actions</th>
               </tr>
             </thead>
@@ -312,7 +325,10 @@ export default function ContactsView({
                     {c.firstName} {c.lastName}
                   </td>
                   <td className="table-td">{c.title ?? "—"}</td>
+                  <td className="table-td">{c.sector ?? "—"}</td>
                   <td className="table-td">{c.company?.name ?? "—"}</td>
+                  <td className="table-td">{c.location ?? "—"}</td>
+                  <td className="table-td">{c.phone ?? "—"}</td>
                   <td className="table-td">
                     <a
                       href={`mailto:${c.email}`}
@@ -321,13 +337,11 @@ export default function ContactsView({
                       {c.email}
                     </a>
                   </td>
-                  <td className="table-td">{c.phone ?? "—"}</td>
                   <td className="table-td">
                     <span className={`pill ${statusColor(c.status)}`}>
                       {c.status}
                     </span>
                   </td>
-                  <td className="table-td">{formatDate(c.createdAt)}</td>
                   <td className="table-td text-right whitespace-nowrap">
                     <button
                       className="text-xs font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300 mr-3"
@@ -352,7 +366,7 @@ export default function ContactsView({
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="px-4 py-10 text-center text-sm text-slate-500 dark:text-slate-400">
+                  <td colSpan={9} className="px-4 py-10 text-center text-sm text-slate-500 dark:text-slate-400">
                     No contacts match your filters.
                   </td>
                 </tr>
@@ -556,6 +570,26 @@ export default function ContactsView({
                 className="input"
                 value={form.title}
                 onChange={(e) => setForm({ ...form, title: e.target.value })}
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">Sector</label>
+              <input
+                className="input"
+                placeholder="e.g. Education, Charity"
+                value={form.sector}
+                onChange={(e) => setForm({ ...form, sector: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className="label">Location</label>
+              <input
+                className="input"
+                placeholder="e.g. London, Manchester"
+                value={form.location}
+                onChange={(e) => setForm({ ...form, location: e.target.value })}
               />
             </div>
           </div>

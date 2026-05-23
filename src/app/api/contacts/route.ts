@@ -22,6 +22,8 @@ export async function POST(req: NextRequest) {
     email,
     phone,
     title,
+    sector,
+    location,
     status,
     companyId,
   } = body ?? {};
@@ -44,6 +46,8 @@ export async function POST(req: NextRequest) {
         email,
         phone: phone || null,
         title: title || null,
+        sector: sector || null,
+        location: location || null,
         status: (status as ContactStatus) ?? "LEAD",
         companyId: companyId || null,
       },

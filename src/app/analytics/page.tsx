@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import PageHeader from "@/components/PageHeader";
 import StatCard from "@/components/StatCard";
 import AnalyticsCharts from "./AnalyticsCharts";
+import EmailStatsView from "../email-stats/EmailStatsView";
 import { formatCurrency, formatNumber } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -125,7 +126,7 @@ export default async function AnalyticsPage() {
     <div>
       <PageHeader
         title="Analytics"
-        subtitle="Pipeline performance, customer mix, and account insights."
+        subtitle="Email engagement, customer mix, and account insights."
       />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -172,7 +173,7 @@ export default async function AnalyticsPage() {
             <thead className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-700">
               <tr>
                 <th className="table-th">Company</th>
-                <th className="table-th">Industry</th>
+                <th className="table-th">Sector</th>
                 <th className="table-th">Contacts</th>
                 <th className="table-th">Deals</th>
                 <th className="table-th">Annual Revenue</th>
@@ -184,7 +185,7 @@ export default async function AnalyticsPage() {
                   <td className="table-td font-medium text-slate-900 dark:text-slate-100">
                     {c.name}
                   </td>
-                  <td className="table-td">{c.industry}</td>
+                  <td className="table-td">{c.industry || "—"}</td>
                   <td className="table-td tabular-nums">
                     {formatNumber(c.contacts)}
                   </td>
@@ -199,6 +200,13 @@ export default async function AnalyticsPage() {
             </tbody>
           </table>
         </div>
+      </div>
+      {/* Email engagement tree */}
+      <div className="mt-6">
+        <h2 className="mb-4 text-base font-semibold text-slate-900 dark:text-slate-100">
+          Email Engagement
+        </h2>
+        <EmailStatsView />
       </div>
     </div>
   );

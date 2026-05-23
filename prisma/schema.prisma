@@ -36,6 +36,8 @@ model Contact {
   email      String   @unique
   phone      String?
   title      String?
+  sector     String?
+  location   String?
   status     ContactStatus @default(LEAD)
   companyId  String?
   company    Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
