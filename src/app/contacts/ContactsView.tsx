@@ -33,7 +33,7 @@ type FormState = {
   sector: string;
   location: string;
   status: Contact["status"];
-  companyId: string;
+  companyName: string;
 };
 
 const EMPTY_FORM: FormState = {
@@ -45,7 +45,7 @@ const EMPTY_FORM: FormState = {
   sector: "",
   location: "",
   status: "LEAD",
-  companyId: "",
+  companyName: "",
 };
 
 const STATUSES: Contact["status"][] = ["LEAD", "QUALIFIED", "CUSTOMER", "CHURNED"];
@@ -59,6 +59,7 @@ export default function ContactsView({
 }) {
   const router = useRouter();
   const [contacts, setContacts] = useState<Contact[]>(initialContacts);
+  const [localCompanies, setLocalCompanies] = useState<CompanyOption[]>(companies);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [open, setOpen] = useState(false);
@@ -118,7 +119,7 @@ export default function ContactsView({
       sector: c.sector ?? "",
       location: c.location ?? "",
       status: c.status,
-      companyId: c.companyId ?? "",
+      companyName: c.company?.name ?? "",
     });
     setError(null);
     setOpen(true);
@@ -129,6 +130,36 @@ export default function ContactsView({
     setSubmitting(true);
     setError(null);
     try {
+      // Resolve company name → ID (create the company if it doesn't exist yet)
+      let resolvedCompanyId: string | null = null;
+      const typedName = form.companyName.trim();
+      if (typedName) {
+        const match = localCompanies.find(
+          (c) => c.name.toLowerCase() === typedName.toLowerCase()
+        );
+        if (match) {
+          resolvedCompanyId = match.id;
+        } else {
+          // Create the new company on the fly
+          const coRes = await fetch("/api/companies", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              name: typedName,
+              industry: form.sector || "",
+            }),
+          });
+          if (coRes.ok) {
+            const newCo = await coRes.json();
+            resolvedCompanyId = newCo.id;
+            setLocalCompanies((prev) => [
+              ...prev,
+              { id: newCo.id, name: newCo.name },
+            ]);
+          }
+        }
+      }
+
       const url = form.id ? `/api/contacts/${form.id}` : "/api/contacts";
       const method = form.id ? "PATCH" : "POST";
       const res = await fetch(url, {
@@ -143,7 +174,7 @@ export default function ContactsView({
           sector: form.sector || null,
           location: form.location || null,
           status: form.status,
-          companyId: form.companyId || null,
+          companyId: resolvedCompanyId,
         }),
       });
       if (!res.ok) {
@@ -615,20 +646,23 @@ export default function ContactsView({
             </div>
             <div>
               <label className="label">Company</label>
-              <select
+              <input
                 className="input"
-                value={form.companyId}
+                list="company-suggestions"
+                placeholder="Type to search or add new…"
+                value={form.companyName}
                 onChange={(e) =>
-                  setForm({ ...form, companyId: e.target.value })
+                  setForm({ ...form, companyName: e.target.value })
                 }
-              >
-                <option value="">— None —</option>
-                {companies.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
+              />
+              <datalist id="company-suggestions">
+                {localCompanies.map((c) => (
+                  <option key={c.id} value={c.name} />
                 ))}
-              </select>
+              </datalist>
+              <p className="mt-1 text-xs text-slate-400">
+                Pick an existing company or type a new name — it will be created automatically.
+              </p>
             </div>
           </div>
 
