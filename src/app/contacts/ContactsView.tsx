@@ -65,10 +65,16 @@ function parseSpreadsheet(text: string): { rows: ImportRow[]; detected: string[]
     h.toLowerCase().replace(/\s+/g, "").replace(/"/g, "")
   );
 
+  // Check if there's a combined full name column
+  const fullNameIdx = rawHeaders.findIndex((h) =>
+    h === "fullname" || h === "name" || h === "fullname" || h === "contactname"
+  );
+
   // Map each column header to a field
   const mapping: (keyof ImportRow | null)[] = rawHeaders.map((h) => {
     if (["firstname", "first"].some((k) => h.includes(k))) return "firstName";
     if (["lastname", "surname", "last"].some((k) => h.includes(k))) return "lastName";
+    if (h === "fullname" || h === "name" || h === "contactname") return null; // handled separately
     if (h.includes("email")) return "email";
     if (["phone", "mobile", "tel"].some((k) => h.includes(k))) return "phone";
     if (["jobtitle", "title", "position", "role"].some((k) => h.includes(k))) return "title";
@@ -78,9 +84,12 @@ function parseSpreadsheet(text: string): { rows: ImportRow[]; detected: string[]
     return null;
   });
 
-  const detected = mapping
-    .map((f, i) => (f ? `${rawHeaders[i]} → ${f}` : null))
-    .filter(Boolean) as string[];
+  const detected = [
+    ...(fullNameIdx !== -1 ? ["name → First Name + Last Name"] : []),
+    ...mapping
+      .map((f, i) => (f ? `${rawHeaders[i]} → ${f}` : null))
+      .filter(Boolean) as string[],
+  ];
 
   const dataLines = lines.slice(1);
   const preview = dataLines.slice(0, 3).map((l) => parseCSVLine(l, delimiter));
@@ -90,6 +99,14 @@ function parseSpreadsheet(text: string): { rows: ImportRow[]; detected: string[]
     if (!line.trim()) continue;
     const cells = parseCSVLine(line, delimiter);
     const row: Partial<ImportRow> = {};
+
+    // Handle combined full name column
+    if (fullNameIdx !== -1 && cells[fullNameIdx]) {
+      const parts = cells[fullNameIdx].trim().split(/\s+/);
+      row.firstName = parts[0] ?? "";
+      row.lastName = parts.slice(1).join(" ") || parts[0]; // fallback to first if no last
+    }
+
     mapping.forEach((field, i) => {
       if (field) (row as any)[field] = cells[i] ?? "";
     });
