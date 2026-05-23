@@ -34,6 +34,15 @@ export async function PATCH(
       },
       include: { company: true },
     });
+
+    // Auto-sync sector to the linked company
+    if (contact.companyId && contact.sector) {
+      await prisma.company.update({
+        where: { id: contact.companyId },
+        data: { industry: contact.sector },
+      });
+    }
+
     return NextResponse.json(contact);
   } catch (e: any) {
     if (e?.code === "P2025") {

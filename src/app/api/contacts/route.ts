@@ -53,6 +53,15 @@ export async function POST(req: NextRequest) {
       },
       include: { company: true },
     });
+
+    // Auto-sync sector to the linked company
+    if (contact.companyId && contact.sector) {
+      await prisma.company.update({
+        where: { id: contact.companyId },
+        data: { industry: contact.sector },
+      });
+    }
+
     return NextResponse.json(contact, { status: 201 });
   } catch (e: any) {
     if (e?.code === "P2002") {
