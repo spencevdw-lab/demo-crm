@@ -47,7 +47,7 @@ async function main() {
       if (existing) {
         companyId = existing.id;
       } else {
-        const created = await prisma.company.create({ data: { name: orgName, industry: "Consulting" } });
+        const created = await prisma.company.create({ data: { name: orgName, industry: "" } });
         companyId = created.id;
       }
     }

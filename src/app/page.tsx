@@ -3,10 +3,7 @@ import { prisma } from "@/lib/prisma";
 import PageHeader from "@/components/PageHeader";
 import StatCard from "@/components/StatCard";
 import {
-  formatCurrency,
-  formatDate,
   formatNumber,
-  stageColor,
   statusColor,
 } from "@/lib/format";
 
@@ -17,42 +14,32 @@ export default async function DashboardPage() {
     companyCount,
     contactCount,
     customerCount,
-    openDeals,
     recentContacts,
-    recentDeals,
+    recentCompanies,
   ] = await Promise.all([
     prisma.company.count(),
     prisma.contact.count(),
     prisma.contact.count({ where: { status: "CUSTOMER" } }),
-    prisma.deal.findMany({
-      where: { stage: { notIn: ["CLOSED_WON", "CLOSED_LOST"] } },
-      select: { value: true },
-    }),
     prisma.contact.findMany({
       orderBy: { createdAt: "desc" },
       take: 6,
       include: { company: true },
     }),
-    prisma.deal.findMany({
+    prisma.company.findMany({
       orderBy: { createdAt: "desc" },
       take: 6,
-      include: { company: true, contact: true },
+      include: { _count: { select: { contacts: true } } },
     }),
   ]);
-
-  const pipelineValue = openDeals.reduce(
-    (sum, d) => sum + Number(d.value),
-    0,
-  );
 
   return (
     <div>
       <PageHeader
         title="Dashboard"
-        subtitle="Snapshot of your pipeline, contacts, and accounts."
+        subtitle="Snapshot of your contacts and accounts."
       />
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <StatCard
           label="Companies"
           value={formatNumber(companyCount)}
@@ -64,16 +51,9 @@ export default async function DashboardPage() {
           hint={`${formatNumber(customerCount)} marked as customers`}
         />
         <StatCard
-          label="Open Pipeline"
-          value={formatCurrency(pipelineValue)}
-          hint={`${openDeals.length} open deals`}
-        />
-        <StatCard
-          label="Avg. Open Deal"
-          value={formatCurrency(
-            openDeals.length ? pipelineValue / openDeals.length : 0,
-          )}
-          hint="Across active stages"
+          label="Customers"
+          value={formatNumber(customerCount)}
+          hint="Active customer contacts"
         />
       </div>
 
@@ -123,47 +103,37 @@ export default async function DashboardPage() {
         <div className="card overflow-hidden">
           <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-800">
             <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-              Recent Deals
+              Recent Companies
             </h2>
             <Link
-              href="/analytics"
+              href="/companies"
               className="text-xs font-medium text-brand-600 hover:text-brand-700"
             >
-              View analytics →
+              View all →
             </Link>
           </div>
           <ul className="divide-y divide-slate-100 dark:divide-slate-800">
-            {recentDeals.map((d) => (
+            {recentCompanies.map((c) => (
               <li
-                key={d.id}
+                key={c.id}
                 className="px-5 py-3 flex items-center justify-between gap-3"
               >
                 <div className="min-w-0">
                   <div className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">
-                    {d.title}
+                    {c.name}
                   </div>
                   <div className="text-xs text-slate-500 dark:text-slate-400 truncate">
-                    {d.company?.name ?? "—"} ·{" "}
-                    {d.expectedCloseDate
-                      ? `Closes ${formatDate(d.expectedCloseDate)}`
-                      : d.closedAt
-                        ? `Closed ${formatDate(d.closedAt)}`
-                        : "—"}
+                    {c.industry || "No sector set"}
                   </div>
                 </div>
-                <div className="flex items-center gap-3 whitespace-nowrap">
-                  <span className="text-sm font-medium text-slate-900 dark:text-slate-100 tabular-nums">
-                    {formatCurrency(Number(d.value))}
-                  </span>
-                  <span className={`pill ${stageColor(d.stage)}`}>
-                    {d.stage.replace("_", " ")}
-                  </span>
-                </div>
+                <span className="text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap">
+                  {c._count.contacts} contact{c._count.contacts !== 1 ? "s" : ""}
+                </span>
               </li>
             ))}
-            {recentDeals.length === 0 && (
+            {recentCompanies.length === 0 && (
               <li className="px-5 py-6 text-sm text-slate-500 dark:text-slate-400">
-                No deals yet.
+                No companies yet.
               </li>
             )}
           </ul>
