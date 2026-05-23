@@ -3,28 +3,18 @@ import PageHeader from "@/components/PageHeader";
 import StatCard from "@/components/StatCard";
 import AnalyticsCharts from "./AnalyticsCharts";
 import EmailStatsView from "../email-stats/EmailStatsView";
-import { formatCurrency, formatNumber } from "@/lib/format";
+import { formatNumber } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
 export default async function AnalyticsPage() {
-  const [contacts, deals, companies] = await Promise.all([
-    prisma.contact.findMany({ select: { status: true, createdAt: true } }),
-    prisma.deal.findMany({
-      select: {
-        stage: true,
-        value: true,
-        createdAt: true,
-        closedAt: true,
-        company: { select: { industry: true, name: true } },
-      },
-    }),
+  const [contacts, companies] = await Promise.all([
+    prisma.contact.findMany({ select: { status: true, createdAt: true, sector: true } }),
     prisma.company.findMany({
       select: {
         name: true,
         industry: true,
-        annualRevenue: true,
-        _count: { select: { deals: true, contacts: true } },
+        _count: { select: { contacts: true } },
       },
     }),
   ]);
@@ -38,42 +28,6 @@ export default async function AnalyticsPage() {
     ([name, value]) => ({ name, value }),
   );
 
-  // Pipeline by stage
-  const stageMap = new Map<string, { count: number; value: number }>();
-  deals.forEach((d) => {
-    const cur = stageMap.get(d.stage) ?? { count: 0, value: 0 };
-    cur.count += 1;
-    cur.value += Number(d.value);
-    stageMap.set(d.stage, cur);
-  });
-  const stageOrder = [
-    "PROSPECTING",
-    "QUALIFICATION",
-    "PROPOSAL",
-    "NEGOTIATION",
-    "CLOSED_WON",
-    "CLOSED_LOST",
-  ];
-  const stageData = stageOrder
-    .map((stage) => ({
-      stage: stage.replace("_", " "),
-      count: stageMap.get(stage)?.count ?? 0,
-      value: stageMap.get(stage)?.value ?? 0,
-    }))
-    .filter((s) => s.count > 0);
-
-  // Industry revenue (from companies)
-  const industryMap = new Map<string, number>();
-  companies.forEach((c) => {
-    industryMap.set(
-      c.industry,
-      (industryMap.get(c.industry) ?? 0) + Number(c.annualRevenue),
-    );
-  });
-  const industryData = Array.from(industryMap.entries())
-    .map(([industry, revenue]) => ({ industry, revenue }))
-    .sort((a, b) => b.revenue - a.revenue);
-
   // Monthly contact growth (last 6 months)
   const now = new Date();
   const monthBuckets: { label: string; key: string; count: number }[] = [];
@@ -81,7 +35,7 @@ export default async function AnalyticsPage() {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
     monthBuckets.push({
-      label: d.toLocaleString("en-US", { month: "short" }),
+      label: d.toLocaleString("en-GB", { month: "short" }),
       key,
       count: 0,
     });
@@ -93,79 +47,60 @@ export default async function AnalyticsPage() {
     if (i !== undefined) monthBuckets[i].count += 1;
   });
 
-  // Top companies by deal value
+  // Contacts by sector
+  const sectorMap = new Map<string, number>();
+  contacts.forEach((c) => {
+    const s = c.sector?.trim() || "Unclassified";
+    sectorMap.set(s, (sectorMap.get(s) ?? 0) + 1);
+  });
+  const sectorData = Array.from(sectorMap.entries())
+    .map(([sector, count]) => ({ sector, count }))
+    .sort((a, b) => b.count - a.count);
+
+  // Top companies by contacts
   const topCompanies = companies
-    .map((c) => ({
-      name: c.name,
-      industry: c.industry,
-      contacts: c._count.contacts,
-      deals: c._count.deals,
-      revenue: Number(c.annualRevenue),
-    }))
-    .sort((a, b) => b.deals - a.deals)
+    .map((c) => ({ name: c.name, industry: c.industry, contacts: c._count.contacts }))
+    .sort((a, b) => b.contacts - a.contacts)
     .slice(0, 8);
 
-  const totalPipeline = deals
-    .filter((d) => d.stage !== "CLOSED_WON" && d.stage !== "CLOSED_LOST")
-    .reduce((s, d) => s + Number(d.value), 0);
-  const wonValue = deals
-    .filter((d) => d.stage === "CLOSED_WON")
-    .reduce((s, d) => s + Number(d.value), 0);
-  const closedDeals = deals.filter(
-    (d) => d.stage === "CLOSED_WON" || d.stage === "CLOSED_LOST",
-  );
-  const winRate = closedDeals.length
-    ? deals.filter((d) => d.stage === "CLOSED_WON").length / closedDeals.length
-    : 0;
-  const avgDealSize =
-    deals.length > 0
-      ? deals.reduce((s, d) => s + Number(d.value), 0) / deals.length
-      : 0;
+  const customerCount = contacts.filter((c) => c.status === "CUSTOMER").length;
 
   return (
     <div>
       <PageHeader
         title="Analytics"
-        subtitle="Email engagement, customer mix, and account insights."
+        subtitle="Email engagement, contact mix, and account insights."
       />
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <StatCard
-          label="Open Pipeline"
-          value={formatCurrency(totalPipeline)}
-          hint={`${deals.length} total deals`}
+          label="Total Contacts"
+          value={formatNumber(contacts.length)}
+          hint={`${formatNumber(customerCount)} customers`}
         />
         <StatCard
-          label="Closed-Won Revenue"
-          value={formatCurrency(wonValue)}
-          hint="Across all time"
+          label="Companies"
+          value={formatNumber(companies.length)}
+          hint="Accounts in your CRM"
         />
         <StatCard
-          label="Win Rate"
-          value={`${(winRate * 100).toFixed(1)}%`}
-          hint={`${closedDeals.length} closed deals`}
-        />
-        <StatCard
-          label="Avg. Deal Size"
-          value={formatCurrency(avgDealSize)}
-          hint="All stages combined"
+          label="Sectors"
+          value={formatNumber(sectorData.filter((s) => s.sector !== "Unclassified").length)}
+          hint="Distinct sectors tracked"
         />
       </div>
 
       <AnalyticsCharts
         statusData={statusData}
-        stageData={stageData}
-        industryData={industryData}
-        monthlyContacts={monthBuckets.map((b) => ({
-          month: b.label,
-          contacts: b.count,
-        }))}
+        monthlyContacts={monthBuckets.map((b) => ({ month: b.label, contacts: b.count }))}
+        sectorData={sectorData.slice(0, 8)}
       />
 
+      {/* Top accounts */}
       <div className="card mt-6 overflow-hidden">
         <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800">
           <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-            Top Accounts by Activity
+            Top Accounts by Contacts
           </h2>
         </div>
         <div className="overflow-x-auto">
@@ -175,32 +110,21 @@ export default async function AnalyticsPage() {
                 <th className="table-th">Company</th>
                 <th className="table-th">Sector</th>
                 <th className="table-th">Contacts</th>
-                <th className="table-th">Deals</th>
-                <th className="table-th">Annual Revenue</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
               {topCompanies.map((c) => (
                 <tr key={c.name}>
-                  <td className="table-td font-medium text-slate-900 dark:text-slate-100">
-                    {c.name}
-                  </td>
+                  <td className="table-td font-medium text-slate-900 dark:text-slate-100">{c.name}</td>
                   <td className="table-td">{c.industry || "—"}</td>
-                  <td className="table-td tabular-nums">
-                    {formatNumber(c.contacts)}
-                  </td>
-                  <td className="table-td tabular-nums">
-                    {formatNumber(c.deals)}
-                  </td>
-                  <td className="table-td tabular-nums">
-                    {formatCurrency(c.revenue)}
-                  </td>
+                  <td className="table-td tabular-nums">{formatNumber(c.contacts)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       </div>
+
       {/* Email engagement tree */}
       <div className="mt-6">
         <h2 className="mb-4 text-base font-semibold text-slate-900 dark:text-slate-100">

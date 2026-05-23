@@ -86,6 +86,7 @@ export default function EmailStatsView() {
   const [error, setError] = useState<string | null>(null);
   const [openSectors, setOpenSectors] = useState<Set<string>>(new Set());
   const [openCompanies, setOpenCompanies] = useState<Set<string>>(new Set());
+  const [removing, setRemoving] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/email-stats")
@@ -104,6 +105,34 @@ export default function EmailStatsView() {
         setLoading(false);
       });
   }, []);
+
+  async function removeContact(id: string, name: string) {
+    if (!confirm(`Remove ${name} from the database? This cannot be undone.`)) return;
+    setRemoving(id);
+    try {
+      await fetch(`/api/contacts/${id}`, { method: "DELETE" });
+      // Remove from tree
+      setData((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          tree: prev.tree
+            .map((sector) => ({
+              ...sector,
+              companies: sector.companies
+                .map((company) => ({
+                  ...company,
+                  contacts: company.contacts.filter((c) => c.id !== id),
+                }))
+                .filter((company) => company.contacts.length > 0),
+            }))
+            .filter((sector) => sector.companies.length > 0),
+        };
+      });
+    } finally {
+      setRemoving(null);
+    }
+  }
 
   function toggleSector(sector: string) {
     setOpenSectors((prev) => {
@@ -293,25 +322,28 @@ export default function EmailStatsView() {
                                 {companyNode.contacts.map((contact) => (
                                   <div
                                     key={contact.id}
-                                    className="flex items-center gap-2 border-b border-slate-100/60 py-2 pl-[4.5rem] pr-5 last:border-0 dark:border-slate-800/60"
+                                    className={`flex items-center gap-2 border-b border-slate-100/60 py-2 pl-[4.5rem] pr-5 last:border-0 dark:border-slate-800/60 ${contact.bounces > 0 ? "bg-rose-50/40 dark:bg-rose-500/5" : ""}`}
                                   >
-                                    <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-slate-300 dark:bg-slate-600" />
+                                    <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${contact.bounces > 0 ? "bg-rose-400" : "bg-slate-300 dark:bg-slate-600"}`} />
                                     <span className="flex-1 text-sm text-slate-700 dark:text-slate-300">
                                       {contact.firstName} {contact.lastName}
                                       <span className="ml-2 text-xs text-slate-400 dark:text-slate-500">
                                         {contact.email}
                                       </span>
                                     </span>
-                                    <div className="flex items-center gap-1.5">
+                                    <div className="flex items-center gap-2">
                                       <Pill value={contact.opens} type="opens" />
-                                      <Pill
-                                        value={contact.clicks}
-                                        type="clicks"
-                                      />
-                                      <Pill
-                                        value={contact.bounces}
-                                        type="bounces"
-                                      />
+                                      <Pill value={contact.clicks} type="clicks" />
+                                      <Pill value={contact.bounces} type="bounces" />
+                                      {contact.bounces > 0 && (
+                                        <button
+                                          onClick={() => removeContact(contact.id, `${contact.firstName} ${contact.lastName}`)}
+                                          disabled={removing === contact.id}
+                                          className="ml-1 rounded px-2 py-0.5 text-xs font-medium text-rose-600 hover:bg-rose-100 dark:hover:bg-rose-500/20 disabled:opacity-50 transition-colors"
+                                        >
+                                          {removing === contact.id ? "Removing…" : "Remove"}
+                                        </button>
+                                      )}
                                     </div>
                                   </div>
                                 ))}

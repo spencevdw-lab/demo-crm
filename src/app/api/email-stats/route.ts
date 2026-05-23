@@ -81,16 +81,11 @@ export async function GET() {
       }
 
       const type = (ev.event ?? "").toLowerCase();
-      if (type === "opened") {
+      if (type === "opened" || type === "uniqueopens" || type === "open") {
         s.opens++;
-      } else if (type === "clicks" || type === "click") {
+      } else if (type === "clicks" || type === "click" || type === "uniqueclicks") {
         s.clicks++;
-      } else if (
-        type === "hardbounces" ||
-        type === "softbounces" ||
-        type === "hardbounce" ||
-        type === "softbounce"
-      ) {
+      } else if (type.includes("bounce")) {
         s.bounces++;
       }
     }
