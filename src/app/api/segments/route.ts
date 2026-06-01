@@ -10,11 +10,15 @@ export const dynamic = "force-dynamic";
  *
  * Query params (all optional):
  *   sector   – return only one sector, e.g. ?sector=Education
+ *   status   – filter by status: LEAD, CUSTOMER, QUALIFIED, CHURNED, or "all" (default: all)
  *   limit    – cap contacts per segment (e.g. 300 for Mon batch)
  *   offset   – skip N within each segment (e.g. 300 for Tue batch)
  *
  * Examples:
- *   /api/segments                                 → all sectors, all contacts
+ *   /api/segments                                 → all sectors, all statuses
+ *   /api/segments?status=all                      → same (explicit)
+ *   /api/segments?status=CUSTOMER                 → customers only
+ *   /api/segments?status=LEAD                     → leads only
  *   /api/segments?sector=Education                → Education segment only
  *   /api/segments?limit=300&offset=0              → first 300 per sector (Mon)
  *   /api/segments?limit=300&offset=300            → next 300 per sector (Tue)
@@ -22,11 +26,16 @@ export const dynamic = "force-dynamic";
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const sectorFilter = searchParams.get("sector");
+  const statusFilter = searchParams.get("status"); // "all" or a specific status
   const limit = searchParams.get("limit") ? parseInt(searchParams.get("limit")!) : undefined;
   const offset = searchParams.get("offset") ? parseInt(searchParams.get("offset")!) : 0;
 
   const where: any = {};
   if (sectorFilter) where.sector = { equals: sectorFilter, mode: "insensitive" };
+  // "all" or omitted = no filter; anything else is treated as a specific status
+  if (statusFilter && statusFilter.toLowerCase() !== "all") {
+    where.status = statusFilter.toUpperCase();
+  }
 
   const allContacts = await prisma.contact.findMany({
     where,
