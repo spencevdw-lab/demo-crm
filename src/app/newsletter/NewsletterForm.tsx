@@ -204,6 +204,7 @@ export default function NewsletterForm() {
             <select className="input" value={sector} onChange={(e) => {
               const s = e.target.value;
               setSector(s);
+              // Auto-enforce branding rule — Education = Help for Schools, all others = Brown Consult
               setBrand(s === "Education" ? "helpforschools" : "brownconsult");
               setPreviewed(false);
             }}>

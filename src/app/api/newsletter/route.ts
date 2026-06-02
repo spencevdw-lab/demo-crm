@@ -83,7 +83,9 @@ export type NewsletterPayload = {
 };
 
 function buildHtml(payload: NewsletterPayload, recipientFirstName = "there"): string {
-  const b = BRANDS[payload.brand ?? "brownconsult"];
+  const autoKey: BrandKey =
+    payload.sector?.toLowerCase() === "education" ? "helpforschools" : "brownconsult";
+  const b = BRANDS[payload.brand ?? autoKey];
   const gold = b.colorPrimary;
   const dark = b.colorDark;
   const textColor = "#444444";
@@ -264,8 +266,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "No contacts found for the specified sector/batch" }, { status: 400 });
   }
 
-  // Resolve brand
-  const brand = BRANDS[payload.brand ?? "brownconsult"];
+  // Resolve brand — Education always uses Help for Schools, everything else uses Brown Consult
+  const autoKey: BrandKey =
+    payload.sector?.toLowerCase() === "education" ? "helpforschools" : "brownconsult";
+  const brand = BRANDS[payload.brand ?? autoKey];
 
   // Send individually via Brevo (so each email is personalised)
   let sent = 0;
