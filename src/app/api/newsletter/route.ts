@@ -7,8 +7,54 @@ const BREVO_API_KEY = process.env.BREVO_API_KEY ?? "";
 const SENDER_EMAIL = process.env.BREVO_SENDER_EMAIL ?? "info@brownconsult.co.uk";
 const SENDER_NAME = process.env.BREVO_SENDER_NAME ?? "Brown Consult";
 
-const LOGO_URL =
-  "https://static.wixstatic.com/media/1e4c48_9f98daab7a0e457588e356717ba7c66b~mv2.png/v1/crop/x_235,y_235,w_959,h_924/fill/w_220,h_212,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/1e4c48_9f98daab7a0e457588e356717ba7c66b~mv2.png";
+const BRANDS = {
+  brownconsult: {
+    name: "Brown Consult",
+    tagline: "Fractional Estates Director & FM Consultancy",
+    logoUrl: "https://static.wixstatic.com/media/1e4c48_9f98daab7a0e457588e356717ba7c66b~mv2.png/v1/crop/x_235,y_235,w_959,h_924/fill/w_220,h_212,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/1e4c48_9f98daab7a0e457588e356717ba7c66b~mv2.png",
+    logoWidth: 110,
+    logoHeight: 106,
+    logoIsImg: true,
+    website: "https://www.brownconsult.co.uk",
+    linkedin: "https://www.linkedin.com/company/brown-consult",
+    ctaDefault: "https://www.brownconsult.co.uk/service-page/introductory-consultation",
+    colorPrimary: "#8B6B18",
+    colorDark: "#1a1a1a",
+    colorFooter: "#1a1a1a",
+    colorButton: "#8B6B18",
+    colorLink: "#8B6B18",
+    senderName: "Brown Consult",
+    address: "71-75 Shelton Street, Covent Garden, London WC2H 9JQ",
+    phone: "020 4558 7729",
+    email: "info@brownconsult.co.uk",
+    signoff: "Spencer van der Werf",
+    signoffTitle: "Managing Director, Brown Consult",
+  },
+  helpforschools: {
+    name: "Help for Schools",
+    tagline: "Specialist Estates Support for Schools & Trusts",
+    logoUrl: "https://helpforschools.org.uk/content/themes/bespoke-theme/assets/images/hs-header-logo.svg",
+    logoWidth: 180,
+    logoHeight: 60,
+    logoIsImg: true,
+    website: "https://www.helpforschools.org.uk",
+    linkedin: "https://www.linkedin.com/company/brown-consult",
+    ctaDefault: "https://www.brownconsult.co.uk/service-page/introductory-consultation",
+    colorPrimary: "#022179",
+    colorDark: "#022179",
+    colorFooter: "#022179",
+    colorButton: "#022179",
+    colorLink: "#022179",
+    senderName: "Help for Schools",
+    address: "71-75 Shelton Street, Covent Garden, London WC2H 9JQ",
+    phone: "020 4558 7729",
+    email: "info@brownconsult.co.uk",
+    signoff: "Spencer van der Werf",
+    signoffTitle: "Managing Director, Help for Schools",
+  },
+} as const;
+
+type BrandKey = keyof typeof BRANDS;
 
 type NewsItem = {
   headline: string;
@@ -29,15 +75,17 @@ export type NewsletterPayload = {
   intro: string;
   newsItems: NewsItem[];
   spotlight: Spotlight;
-  sector?: string; // "Education" | "Police" | "Fire" | "Health" | "all"
+  sector?: string;
+  brand?: BrandKey; // "brownconsult" | "helpforschools"
   batchOffset?: number;
   batchLimit?: number;
-  previewOnly?: boolean; // if true, returns HTML without sending
+  previewOnly?: boolean;
 };
 
 function buildHtml(payload: NewsletterPayload, recipientFirstName = "there"): string {
-  const gold = "#8B6B18";
-  const dark = "#1a1a1a";
+  const b = BRANDS[payload.brand ?? "brownconsult"];
+  const gold = b.colorPrimary;
+  const dark = b.colorDark;
   const textColor = "#444444";
   const bgLight = "#fafaf8";
   const border = "#efefef";
@@ -81,12 +129,12 @@ function buildHtml(payload: NewsletterPayload, recipientFirstName = "there"): st
             <table width="100%" cellpadding="0" cellspacing="0" border="0">
               <tr>
                 <td>
-                  <a href="https://www.brownconsult.co.uk" style="text-decoration:none;">
-                    <img src="${LOGO_URL}" alt="Brown Consult" width="110" height="106" style="display:block;border:0;" />
+                  <a href="${b.website}" style="text-decoration:none;">
+                    <img src="${b.logoUrl}" alt="${b.name}" width="${b.logoWidth}" height="${b.logoHeight}" style="display:block;border:0;" />
                   </a>
                 </td>
                 <td align="right" style="vertical-align:middle;">
-                  <p style="margin:0;font-size:12px;color:#888;font-family:${font};">Fractional Estates Director &amp; FM Consultancy</p>
+                  <p style="margin:0;font-size:12px;color:#888;font-family:${font};">${b.tagline}</p>
                 </td>
               </tr>
             </table>
@@ -141,30 +189,30 @@ function buildHtml(payload: NewsletterPayload, recipientFirstName = "there"): st
           <td style="padding:24px 32px;background-color:#ffffff;border-top:1px solid ${border};">
             <p style="margin:0;font-size:14px;color:${textColor};line-height:1.6;font-family:${font};">
               Kind regards,<br />
-              <strong>Spencer van der Werf</strong><br />
-              Managing Director, Brown Consult<br />
-              <a href="tel:02045587729" style="color:${gold};text-decoration:none;">020 4558 7729</a> &nbsp;|&nbsp;
-              <a href="https://www.brownconsult.co.uk" style="color:${gold};text-decoration:none;">brownconsult.co.uk</a>
+              <strong>${b.signoff}</strong><br />
+              ${b.signoffTitle}<br />
+              <a href="tel:${b.phone.replace(/\s/g,'')}" style="color:${gold};text-decoration:none;">${b.phone}</a> &nbsp;|&nbsp;
+              <a href="${b.website}" style="color:${gold};text-decoration:none;">${b.website.replace('https://www.','')}</a>
             </p>
           </td>
         </tr>
 
         <!-- FOOTER -->
         <tr>
-          <td style="background-color:${dark};padding:20px 32px;border-radius:0 0 8px 8px;">
+          <td style="background-color:${b.colorFooter};padding:20px 32px;border-radius:0 0 8px 8px;">
             <table width="100%" cellpadding="0" cellspacing="0" border="0">
               <tr>
                 <td>
                   <p style="margin:0 0 4px 0;font-size:12px;color:#cccccc;font-family:${font};">
-                    <strong style="color:#ffffff;">Brown Consult Ltd</strong> &nbsp;|&nbsp; 71-75 Shelton Street, Covent Garden, London WC2H 9JQ
+                    <strong style="color:#ffffff;">${b.name}</strong> &nbsp;|&nbsp; ${b.address}
                   </p>
                   <p style="margin:0 0 8px 0;font-size:12px;color:#cccccc;font-family:${font};">
-                    <a href="mailto:info@brownconsult.co.uk" style="color:${gold};text-decoration:none;">info@brownconsult.co.uk</a>
+                    <a href="mailto:${b.email}" style="color:${gold};text-decoration:none;">${b.email}</a>
                     &nbsp;|&nbsp;
-                    <a href="https://www.linkedin.com/company/brown-consult" style="color:${gold};text-decoration:none;">LinkedIn</a>
+                    <a href="${b.linkedin}" style="color:${gold};text-decoration:none;">LinkedIn</a>
                   </p>
                   <p style="margin:0;font-size:11px;color:#777777;font-family:${font};">
-                    You are receiving this because you are a contact of Brown Consult. To unsubscribe, reply with "unsubscribe" in the subject line.
+                    You are receiving this because you are a contact of ${b.name}. To unsubscribe, reply with "unsubscribe" in the subject line.
                   </p>
                 </td>
               </tr>
@@ -216,6 +264,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "No contacts found for the specified sector/batch" }, { status: 400 });
   }
 
+  // Resolve brand
+  const brand = BRANDS[payload.brand ?? "brownconsult"];
+
   // Send individually via Brevo (so each email is personalised)
   let sent = 0;
   let failed = 0;
@@ -233,7 +284,7 @@ export async function POST(req: NextRequest) {
           accept: "application/json",
         },
         body: JSON.stringify({
-          sender: { name: SENDER_NAME, email: SENDER_EMAIL },
+          sender: { name: brand.senderName, email: SENDER_EMAIL },
           to: [{ email: contact.email, name: `${contact.firstName} ${contact.lastName}` }],
           subject: payload.subject,
           htmlContent: html,

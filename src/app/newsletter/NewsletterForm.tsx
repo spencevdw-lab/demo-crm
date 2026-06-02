@@ -26,16 +26,19 @@ export default function NewsletterForm() {
   const [ctaText, setCtaText] = useState("Discuss Your Needs");
   const [ctaUrl, setCtaUrl] = useState("https://www.brownconsult.co.uk/service-page/introductory-consultation");
   const [sector, setSector] = useState("Education");
+  const [brand, setBrand] = useState<"brownconsult" | "helpforschools">("helpforschools");
   const [batchOffset, setBatchOffset] = useState(0);
   const [batchLimit, setBatchLimit] = useState<number | "">(300);
   const [sending, setSending] = useState(false);
   const [previewing, setPreviewing] = useState(false);
+  const [previewed, setPreviewed] = useState(false);
   const [result, setResult] = useState<{ sent: number; failed: number; total: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [previewHtml, setPreviewHtml] = useState<string | null>(null);
 
   function updateNews(i: number, field: string, value: string) {
     setNewsItems((prev) => prev.map((n, idx) => idx === i ? { ...n, [field]: value } : n));
+    setPreviewed(false);
   }
 
   function addNewsItem() {
@@ -53,6 +56,7 @@ export default function NewsletterForm() {
       newsItems: newsItems.filter((n) => n.headline && n.summary),
       spotlight: { service, copy: spotlightCopy, ctaText, ctaUrl },
       sector,
+      brand,
       batchOffset,
       batchLimit: batchLimit === "" ? undefined : batchLimit,
       previewOnly,
@@ -71,6 +75,7 @@ export default function NewsletterForm() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setPreviewHtml(data.html);
+      setPreviewed(true);
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -136,11 +141,11 @@ export default function NewsletterForm() {
         <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Subject & Intro</h2>
         <div>
           <label className="label">Subject line</label>
-          <input className="input" placeholder="e.g. Brown Consult | Week of June 9" value={subject} onChange={(e) => setSubject(e.target.value)} />
+          <input className="input" placeholder="e.g. Brown Consult | Week of June 9" value={subject} onChange={(e) => { setSubject(e.target.value); setPreviewed(false); }} />
         </div>
         <div>
           <label className="label">Intro paragraph</label>
-          <textarea className="input min-h-[80px] resize-y" placeholder="Opening line of the newsletter..." value={intro} onChange={(e) => setIntro(e.target.value)} />
+          <textarea className="input min-h-[80px] resize-y" placeholder="Opening line of the newsletter..." value={intro} onChange={(e) => { setIntro(e.target.value); setPreviewed(false); }} />
         </div>
       </div>
 
@@ -196,7 +201,12 @@ export default function NewsletterForm() {
         <div className="grid grid-cols-3 gap-3">
           <div>
             <label className="label">Sector</label>
-            <select className="input" value={sector} onChange={(e) => setSector(e.target.value)}>
+            <select className="input" value={sector} onChange={(e) => {
+              const s = e.target.value;
+              setSector(s);
+              setBrand(s === "Education" ? "helpforschools" : "brownconsult");
+              setPreviewed(false);
+            }}>
               {SECTORS.map((s) => <option key={s} value={s}>{s === "all" ? "All sectors" : s}</option>)}
             </select>
           </div>
@@ -208,6 +218,19 @@ export default function NewsletterForm() {
             <label className="label">Batch offset</label>
             <input className="input" type="number" value={batchOffset} onChange={(e) => setBatchOffset(parseInt(e.target.value) || 0)} />
           </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-slate-500">Sending as:</span>
+          <button type="button"
+            className={`text-xs px-3 py-1 rounded-full font-medium border transition ${brand === "helpforschools" ? "bg-[#022179] text-white border-[#022179]" : "bg-white text-slate-500 border-slate-200"}`}
+            onClick={() => { setBrand("helpforschools"); setPreviewed(false); }}>
+            Help for Schools
+          </button>
+          <button type="button"
+            className={`text-xs px-3 py-1 rounded-full font-medium border transition ${brand === "brownconsult" ? "bg-[#8B6B18] text-white border-[#8B6B18]" : "bg-white text-slate-500 border-slate-200"}`}
+            onClick={() => { setBrand("brownconsult"); setPreviewed(false); }}>
+            Brown Consult
+          </button>
         </div>
         <p className="text-xs text-slate-400">Leave limit blank to send to all. Use offset 0 for Monday batch, 300 for Tuesday batch.</p>
       </div>
@@ -222,9 +245,18 @@ export default function NewsletterForm() {
         <button className="btn-secondary" onClick={preview} disabled={previewing || !subject || !intro}>
           {previewing ? "Generating…" : "Preview Email"}
         </button>
-        <button className="btn-primary" onClick={send} disabled={sending || !subject || !intro || newsItems.every((n) => !n.headline)}>
-          {sending ? "Sending…" : "Send Newsletter"}
-        </button>
+        <div className="flex flex-col">
+          <button
+            className="btn-primary disabled:opacity-40 disabled:cursor-not-allowed"
+            onClick={send}
+            disabled={sending || !previewed || !subject || !intro || newsItems.every((n) => !n.headline)}
+          >
+            {sending ? "Sending…" : "Send Newsletter"}
+          </button>
+          {!previewed && (
+            <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">Preview required before sending</p>
+          )}
+        </div>
       </div>
     </div>
   );
