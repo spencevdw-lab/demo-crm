@@ -82,6 +82,15 @@ export type NewsletterPayload = {
   previewOnly?: boolean;
 };
 
+function esc(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/£/g, "&pound;")
+    .replace(/"/g, "&quot;");
+}
+
 function buildHtml(payload: NewsletterPayload, recipientFirstName = "there"): string {
   const autoKey: BrandKey =
     payload.sector?.toLowerCase() === "education" ? "helpforschools" : "brownconsult";
@@ -99,13 +108,13 @@ function buildHtml(payload: NewsletterPayload, recipientFirstName = "there"): st
     <tr>
       <td style="padding:0 0 24px 0;">
         <p style="margin:0 0 6px 0;font-size:16px;font-weight:bold;color:${dark};font-family:${font};">
-          ${item.headline}
+          ${esc(item.headline)}
         </p>
         <p style="margin:0 0 8px 0;font-size:14px;line-height:1.6;color:${textColor};font-family:${font};">
-          ${item.summary}
+          ${esc(item.summary)}
         </p>
         <a href="${item.readMoreUrl}" style="font-size:13px;color:${gold};text-decoration:none;font-family:${font};">
-          Read more → <span style="font-size:11px;color:#888;">(${item.source})</span>
+          Read more &rarr; <span style="font-size:11px;color:#888;">(${esc(item.source)})</span>
         </a>
       </td>
     </tr>`
@@ -151,7 +160,7 @@ function buildHtml(payload: NewsletterPayload, recipientFirstName = "there"): st
               Hi ${recipientFirstName},
             </p>
             <p style="margin:0;font-size:15px;color:${textColor};line-height:1.6;font-family:${font};">
-              ${payload.intro}
+              ${esc(payload.intro)}
             </p>
           </td>
         </tr>
@@ -177,11 +186,11 @@ function buildHtml(payload: NewsletterPayload, recipientFirstName = "there"): st
           <td style="padding:0 32px 28px 32px;background-color:${bgLight};">
             <div style="height:20px;"></div>
             <p style="margin:0 0 12px 0;font-size:11px;font-weight:bold;letter-spacing:2px;color:${gold};text-transform:uppercase;font-family:${font};">From Brown Consult</p>
-            <p style="margin:0 0 6px 0;font-size:16px;font-weight:bold;color:${dark};font-family:${font};">${payload.spotlight.service}</p>
-            <p style="margin:0 0 20px 0;font-size:14px;line-height:1.7;color:${textColor};font-family:${font};">${payload.spotlight.copy}</p>
+            <p style="margin:0 0 6px 0;font-size:16px;font-weight:bold;color:${dark};font-family:${font};">${esc(payload.spotlight.service)}</p>
+            <p style="margin:0 0 20px 0;font-size:14px;line-height:1.7;color:${textColor};font-family:${font};">${esc(payload.spotlight.copy)}</p>
             <a href="${payload.spotlight.ctaUrl}"
                style="display:inline-block;background-color:${gold};color:#ffffff;text-decoration:none;font-size:14px;font-weight:bold;padding:12px 28px;border-radius:4px;font-family:${font};">
-              ${payload.spotlight.ctaText}
+              ${esc(payload.spotlight.ctaText)}
             </a>
           </td>
         </tr>
