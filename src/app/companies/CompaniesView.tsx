@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import PageHeader from "@/components/PageHeader";
 import Modal from "@/components/Modal";
-import { formatCurrency, formatNumber } from "@/lib/format";
+import { formatCurrency } from "@/lib/format";
 
 type Company = {
   id: string;
@@ -25,8 +25,6 @@ type FormState = {
   name: string;
   industry: string;
   website: string;
-  employees: string;
-  annualRevenue: string;
   city: string;
   country: string;
 };
@@ -35,8 +33,6 @@ const EMPTY_FORM: FormState = {
   name: "",
   industry: "",
   website: "",
-  employees: "",
-  annualRevenue: "",
   city: "",
   country: "",
 };
@@ -49,13 +45,13 @@ export default function CompaniesView({
   const router = useRouter();
   const [companies, setCompanies] = useState<Company[]>(initialCompanies);
   const [search, setSearch] = useState("");
-  const [industryFilter, setIndustryFilter] = useState("ALL");
+  const [sectorFilter, setSectorFilter] = useState("ALL");
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const industries = useMemo(() => {
+  const sectors = useMemo(() => {
     const set = new Set<string>();
     companies.forEach((c) => set.add(c.industry));
     return Array.from(set).sort();
@@ -64,14 +60,14 @@ export default function CompaniesView({
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return companies.filter((c) => {
-      if (industryFilter !== "ALL" && c.industry !== industryFilter) return false;
+      if (sectorFilter !== "ALL" && c.industry !== sectorFilter) return false;
       if (!q) return true;
       const haystack = [c.name, c.industry, c.city ?? "", c.country ?? ""]
         .join(" ")
         .toLowerCase();
       return haystack.includes(q);
     });
-  }, [companies, search, industryFilter]);
+  }, [companies, search, sectorFilter]);
 
   function openCreate() {
     setForm(EMPTY_FORM);
@@ -85,8 +81,6 @@ export default function CompaniesView({
       name: c.name,
       industry: c.industry,
       website: c.website ?? "",
-      employees: String(c.employees ?? ""),
-      annualRevenue: String(c.annualRevenue ?? ""),
       city: c.city ?? "",
       country: c.country ?? "",
     });
@@ -108,8 +102,6 @@ export default function CompaniesView({
           name: form.name,
           industry: form.industry,
           website: form.website,
-          employees: form.employees ? Number(form.employees) : 0,
-          annualRevenue: form.annualRevenue ? Number(form.annualRevenue) : 0,
           city: form.city,
           country: form.country,
         }),
@@ -154,23 +146,14 @@ export default function CompaniesView({
     }
   }
 
-  const totalRevenue = filtered.reduce((s, c) => s + Number(c.annualRevenue), 0);
-  const totalEmployees = filtered.reduce((s, c) => s + (c.employees ?? 0), 0);
-
   return (
     <div>
       <PageHeader
         title="Companies"
-        subtitle={`${companies.length} accounts · ${formatCurrency(totalRevenue)} total revenue · ${formatNumber(totalEmployees)} employees`}
+        subtitle={`${companies.length} accounts`}
         actions={
           <button className="btn-primary" onClick={openCreate}>
-            <svg
-              className="h-4 w-4"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              viewBox="0 0 24 24"
-            >
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
               <path d="M12 5v14M5 12h14" strokeLinecap="round" />
             </svg>
             New Company
@@ -182,20 +165,18 @@ export default function CompaniesView({
         <div className="flex flex-wrap items-center gap-2 px-4 py-3 border-b border-slate-100 dark:border-slate-800">
           <input
             className="input max-w-xs"
-            placeholder="Search by name, industry, location..."
+            placeholder="Search by name, sector, location..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
           <select
             className="input max-w-[200px]"
-            value={industryFilter}
-            onChange={(e) => setIndustryFilter(e.target.value)}
+            value={sectorFilter}
+            onChange={(e) => setSectorFilter(e.target.value)}
           >
-            <option value="ALL">All industries</option>
-            {industries.map((i) => (
-              <option key={i} value={i}>
-                {i}
-              </option>
+            <option value="ALL">All sectors</option>
+            {sectors.map((s) => (
+              <option key={s} value={s}>{s}</option>
             ))}
           </select>
         </div>
@@ -205,12 +186,10 @@ export default function CompaniesView({
             <thead className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-700">
               <tr>
                 <th className="table-th">Name</th>
-                <th className="table-th">Industry</th>
+                <th className="table-th">Sector</th>
                 <th className="table-th">Location</th>
-                <th className="table-th">Employees</th>
                 <th className="table-th">Annual Revenue</th>
                 <th className="table-th">Contacts</th>
-                <th className="table-th">Deals</th>
                 <th className="table-th text-right">Actions</th>
               </tr>
             </thead>
@@ -219,30 +198,20 @@ export default function CompaniesView({
                 <tr key={c.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
                   <td className="table-td font-medium text-slate-900 dark:text-slate-100">
                     {c.website ? (
-                      <a
-                        href={c.website}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="hover:text-brand-600 dark:hover:text-brand-400"
-                      >
+                      <a href={c.website} target="_blank" rel="noopener noreferrer"
+                        className="hover:text-brand-600 dark:hover:text-brand-400">
                         {c.name}
                       </a>
-                    ) : (
-                      c.name
-                    )}
+                    ) : c.name}
                   </td>
-                  <td className="table-td">{c.industry}</td>
+                  <td className="table-td">{c.industry || "—"}</td>
                   <td className="table-td">
                     {[c.city, c.country].filter(Boolean).join(", ") || "—"}
                   </td>
                   <td className="table-td tabular-nums">
-                    {formatNumber(c.employees)}
-                  </td>
-                  <td className="table-td tabular-nums">
-                    {formatCurrency(Number(c.annualRevenue))}
+                    {c.annualRevenue ? formatCurrency(Number(c.annualRevenue)) : "—"}
                   </td>
                   <td className="table-td tabular-nums">{c._count.contacts}</td>
-                  <td className="table-td tabular-nums">{c._count.deals}</td>
                   <td className="table-td text-right whitespace-nowrap">
                     <button
                       className="text-xs font-medium text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 mr-3"
@@ -261,7 +230,7 @@ export default function CompaniesView({
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="px-4 py-10 text-center text-sm text-slate-500 dark:text-slate-400">
+                  <td colSpan={6} className="px-4 py-10 text-center text-sm text-slate-500 dark:text-slate-400">
                     No companies match your filters.
                   </td>
                 </tr>
@@ -271,81 +240,36 @@ export default function CompaniesView({
         </div>
       </div>
 
-      <Modal
-        open={open}
-        onClose={() => setOpen(false)}
-        title={form.id ? "Edit Company" : "New Company"}
-      >
+      <Modal open={open} onClose={() => setOpen(false)} title={form.id ? "Edit Company" : "New Company"}>
         <form onSubmit={submit} className="space-y-4">
           <div>
             <label className="label">Name</label>
-            <input
-              className="input"
-              required
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-            />
+            <input className="input" required value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">Industry</label>
-              <input
-                className="input"
-                required
-                value={form.industry}
-                onChange={(e) => setForm({ ...form, industry: e.target.value })}
-              />
+              <label className="label">Sector</label>
+              <input className="input" required value={form.industry}
+                placeholder="e.g. Education, Charity"
+                onChange={(e) => setForm({ ...form, industry: e.target.value })} />
             </div>
             <div>
               <label className="label">Website</label>
-              <input
-                className="input"
-                placeholder="https://..."
-                value={form.website}
-                onChange={(e) => setForm({ ...form, website: e.target.value })}
-              />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="label">Employees</label>
-              <input
-                className="input"
-                type="number"
-                min={0}
-                value={form.employees}
-                onChange={(e) => setForm({ ...form, employees: e.target.value })}
-              />
-            </div>
-            <div>
-              <label className="label">Annual revenue (USD)</label>
-              <input
-                className="input"
-                type="number"
-                min={0}
-                value={form.annualRevenue}
-                onChange={(e) =>
-                  setForm({ ...form, annualRevenue: e.target.value })
-                }
-              />
+              <input className="input" placeholder="https://..." value={form.website}
+                onChange={(e) => setForm({ ...form, website: e.target.value })} />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="label">City</label>
-              <input
-                className="input"
-                value={form.city}
-                onChange={(e) => setForm({ ...form, city: e.target.value })}
-              />
+              <input className="input" value={form.city}
+                onChange={(e) => setForm({ ...form, city: e.target.value })} />
             </div>
             <div>
               <label className="label">Country</label>
-              <input
-                className="input"
-                value={form.country}
-                onChange={(e) => setForm({ ...form, country: e.target.value })}
-              />
+              <input className="input" value={form.country}
+                onChange={(e) => setForm({ ...form, country: e.target.value })} />
             </div>
           </div>
 
@@ -356,13 +280,7 @@ export default function CompaniesView({
           )}
 
           <div className="flex items-center justify-end gap-2 pt-2">
-            <button
-              type="button"
-              className="btn-secondary"
-              onClick={() => setOpen(false)}
-            >
-              Cancel
-            </button>
+            <button type="button" className="btn-secondary" onClick={() => setOpen(false)}>Cancel</button>
             <button type="submit" className="btn-primary" disabled={submitting}>
               {submitting ? "Saving..." : form.id ? "Save changes" : "Create company"}
             </button>

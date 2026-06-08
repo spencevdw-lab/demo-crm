@@ -11,7 +11,7 @@ export async function PATCH(
   { params }: { params: { id: string } },
 ) {
   const body = await req.json();
-  const { firstName, lastName, email, phone, title, status, companyId } =
+  const { firstName, lastName, email, phone, title, sector, location, status, companyId } =
     body ?? {};
 
   if (status && !ALLOWED_STATUSES.includes(status as ContactStatus)) {
@@ -27,11 +27,22 @@ export async function PATCH(
         ...(email !== undefined && { email }),
         ...(phone !== undefined && { phone: phone || null }),
         ...(title !== undefined && { title: title || null }),
+        ...(sector !== undefined && { sector: sector || null }),
+        ...(location !== undefined && { location: location || null }),
         ...(status !== undefined && { status: status as ContactStatus }),
         ...(companyId !== undefined && { companyId: companyId || null }),
       },
       include: { company: true },
     });
+
+    // Auto-sync sector to the linked company
+    if (contact.companyId && contact.sector) {
+      await prisma.company.update({
+        where: { id: contact.companyId },
+        data: { industry: contact.sector },
+      });
+    }
+
     return NextResponse.json(contact);
   } catch (e: any) {
     if (e?.code === "P2025") {

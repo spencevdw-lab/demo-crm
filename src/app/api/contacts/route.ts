@@ -22,6 +22,8 @@ export async function POST(req: NextRequest) {
     email,
     phone,
     title,
+    sector,
+    location,
     status,
     companyId,
   } = body ?? {};
@@ -44,11 +46,22 @@ export async function POST(req: NextRequest) {
         email,
         phone: phone || null,
         title: title || null,
+        sector: sector || null,
+        location: location || null,
         status: (status as ContactStatus) ?? "LEAD",
         companyId: companyId || null,
       },
       include: { company: true },
     });
+
+    // Auto-sync sector to the linked company
+    if (contact.companyId && contact.sector) {
+      await prisma.company.update({
+        where: { id: contact.companyId },
+        data: { industry: contact.sector },
+      });
+    }
+
     return NextResponse.json(contact, { status: 201 });
   } catch (e: any) {
     if (e?.code === "P2002") {
